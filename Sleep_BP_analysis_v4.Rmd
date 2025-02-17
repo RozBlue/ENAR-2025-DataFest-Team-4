@@ -1,0 +1,627 @@
+---
+title: "Sleep and Systolic Blood Pressure Analysis"
+date: "2025-02-13"
+output: pdf_document
+---
+```{r package}
+# Load package
+
+# Data manipulation
+library(dplyr)
+library(haven)
+library(tidyverse)
+library(broom)
+library(gtsummary)
+
+# Statistic analysis
+library(rstatix)
+
+# Visualization
+library(ggplot2)
+library(ggResidpanel)
+library(broom)
+library(circlize)
+```
+
+```{r import_clean_data}
+# Import cleaned data
+bpdata <- read.csv("bpdata_clean3_allg_inhbp.csv")
+```
+
+```{r tidy_sleep_duration}
+# Convert sleep duration
+bpdata$sleephrscat <- cut(bpdata$SLD012,
+                          breaks = c(0, 7, 9, Inf),
+                          labels = c("<7 hours", "7-9 hours", ">=9 hours"),
+                          right = T)
+
+```
+
+
+```{r tidy_sleep_time}
+# Convert sleep time
+# Each hour away from the recommended sleep time, sleeptim_num add 1
+bpdata$sleeptim <- cut(as.POSIXct(bpdata$SLQ300, format = "%H:%M"),
+                             breaks = c(as.POSIXct("00:00", format = "%H:%M"),
+                                        as.POSIXct("01:00", format = "%H:%M"), 
+                                        as.POSIXct("02:00", format = "%H:%M"), 
+                                        as.POSIXct("03:00", format = "%H:%M"), 
+                                        as.POSIXct("04:00", format = "%H:%M"), 
+                                        as.POSIXct("05:00", format = "%H:%M"),
+                                        as.POSIXct("06:00", format = "%H:%M"),
+                                        as.POSIXct("07:00", format = "%H:%M"),
+                                        as.POSIXct("08:00", format = "%H:%M"),
+                                        as.POSIXct("09:00", format = "%H:%M"),
+                                        as.POSIXct("10:00", format = "%H:%M"),
+                                        as.POSIXct("11:00", format = "%H:%M"),
+                                        as.POSIXct("12:00", format = "%H:%M"), 
+                                        as.POSIXct("13:00", format = "%H:%M"),
+                                        as.POSIXct("14:00", format = "%H:%M"),
+                                        as.POSIXct("15:00", format = "%H:%M"),
+                                        as.POSIXct("16:00", format = "%H:%M"),
+                                        as.POSIXct("17:00", format = "%H:%M"), 
+                                        as.POSIXct("18:00", format = "%H:%M"), 
+                                        as.POSIXct("19:00", format = "%H:%M"), 
+                                        as.POSIXct("20:00", format = "%H:%M"), 
+                                        as.POSIXct("21:00", format = "%H:%M"), 
+                                        as.POSIXct("22:00", format = "%H:%M"), 
+                                        as.POSIXct("23:00", format = "%H:%M"),
+                                        as.POSIXct("23:59", format = "%H:%M")),
+                             labels = c("-2hrs", "-3hrs", "-4hrs", "-5hrs", "-6hrs", 
+                                        "-7hrs", "-8hrs", "-9hrs", "-10hrs", "-11hrs", "-12hrs",
+                                        "+11hrs", "+10hrs", "+9hrs", "+8hrs", "+7hrs", 
+                                        "+6hrs", "+5hrs", "+4hrs", "+3hrs", "+2hrs",
+                                        "+1hrs", "22-23", "-1hrs"),
+                             left = T)
+bpdata <- bpdata %>%
+  mutate(sleeptim_num = case_when(sleeptim %in% c("-1hrs", "+1hrs") ~ 1,
+                                  sleeptim %in% c("-2hrs", "+2hrs") ~ 2,
+                                  sleeptim %in% c("-3hrs", "+3hrs") ~ 3,
+                                  sleeptim %in% c("-4hrs", "+4hrs") ~ 4,
+                                  sleeptim %in% c("-5hrs", "+5hrs") ~ 5,
+                                  sleeptim %in% c("-6hrs", "+6hrs") ~ 6,
+                                  sleeptim %in% c("-7hrs", "+7hrs") ~ 7,
+                                  sleeptim %in% c("-8hrs", "+8hrs") ~ 8,
+                                  sleeptim %in% c("-9hrs", "+9hrs") ~ 9,
+                                  sleeptim %in% c("-10hrs", "+10hrs") ~ 10,
+                                  sleeptim %in% c("-11hrs", "+11hrs") ~ 11,
+                                  sleeptim == "-12hrs" ~ 12,
+                                  sleeptim == "22-23" ~ 0))
+
+```
+
+```{r tidy_wake_time}
+# Convert wake time
+# Each hour away from the recommended wake time, waketim_num add 1
+bpdata$waketim <- cut(as.POSIXct(bpdata$SLQ310, format = "%H:%M"),
+                       breaks = c(as.POSIXct("00:00", format = "%H:%M"),
+                                  as.POSIXct("01:00", format = "%H:%M"),
+                                  as.POSIXct("02:00", format = "%H:%M"),
+                                  as.POSIXct("03:00", format = "%H:%M"),
+                                  as.POSIXct("04:00", format = "%H:%M"),
+                                  as.POSIXct("05:00", format = "%H:%M"),
+                                  as.POSIXct("06:00", format = "%H:%M"),
+                                  as.POSIXct("07:00", format = "%H:%M"),
+                                  as.POSIXct("08:00", format = "%H:%M"),
+                                  as.POSIXct("09:00", format = "%H:%M"),
+                                  as.POSIXct("10:00", format = "%H:%M"),
+                                  as.POSIXct("11:00", format = "%H:%M"),
+                                  as.POSIXct("12:00", format = "%H:%M"),
+                                  as.POSIXct("13:00", format = "%H:%M"),
+                                  as.POSIXct("14:00", format = "%H:%M"),
+                                  as.POSIXct("15:00", format = "%H:%M"),
+                                  as.POSIXct("16:00", format = "%H:%M"),
+                                  as.POSIXct("17:00", format = "%H:%M"),
+                                  as.POSIXct("18:00", format = "%H:%M"),
+                                  as.POSIXct("19:00", format = "%H:%M"),
+                                  as.POSIXct("20:00", format = "%H:%M"),
+                                  as.POSIXct("21:00", format = "%H:%M"),
+                                  as.POSIXct("22:00", format = "%H:%M"),
+                                  as.POSIXct("23:00", format = "%H:%M"),
+                                  as.POSIXct("23:59", format = "%H:%M")),
+                       labels = c("+6hrs", "+5hrs", "+4hrs", "+3hrs", "+2hrs", "+1hrs", 
+                                  "6-7", "-1hrs", "-2hrs", "-3hrs",
+                                  "-4hrs", "-5hrs", "-6hrs", "-7hrs", "-8hrs", "-9hrs",
+                                  "-10hrs", "-11hrs", "-12hrs", "+11hrs",
+                                  "+10hrs", "+9hrs", "+8hrs", "+7hrs"),
+                       left = T)
+
+
+bpdata <- bpdata %>%
+  mutate(waketim_num = case_when(waketim %in% c("-1hrs", "+1hrs") ~ 1,
+                                waketim %in% c("-2hrs", "+2hrs") ~ 2,
+                                waketim %in% c("-3hrs", "+3hrs") ~ 3,
+                                waketim %in% c("-4hrs", "+4hrs") ~ 4,
+                                waketim %in% c("-5hrs", "+5hrs") ~ 5,
+                                waketim %in% c("-6hrs", "+6hrs") ~ 6,
+                                waketim %in% c("-7hrs", "+7hrs") ~ 7,
+                                waketim %in% c("-8hrs", "+8hrs") ~ 8,
+                                waketim %in% c("-9hrs", "+9hrs") ~ 9,
+                                waketim %in% c("-10hrs", "+10hrs") ~ 10,
+                                waketim %in% c("-11hrs", "+11hrs") ~ 11,
+                                waketim == "-12hrs" ~ 12,
+                                waketim == "6-7" ~ 0))
+
+```
+
+
+```{r tidy_age}
+# Divide age groups (18, 39], (39, 59], 60 and over
+bpdata$agegroup <- cut(bpdata$RIDAGEYR,
+                        breaks = c(0, 39, 59, Inf),
+                        labels = c("18 - 39", "40 - 59", ">= 60"),
+                        include.lowest = F)
+```
+
+```{r tidy_sodium}
+# Divide sodium intake
+bpdata$sodium <- cut(bpdata$DR1TSODI,
+                      breaks = c(0, 1500, 2300, Inf),
+                      labels = c("below recommendation", 
+                                 "within recommendation", 
+                                 "above recommendation"),
+                      right = T)
+```
+
+```{r tidy_bmi}
+# Divide BMI
+bpdata$bodyweight <- cut(bpdata$BMXBMI,
+                          breaks = c(0, 18.5, 24.9, Inf),
+                          labels = c("under weight", 
+                                     "normal weight", 
+                                     "overweight"),
+                          right = T)
+```
+
+```{r tidy_alcohol}
+# Divide drinking alcohol
+bpdata$alcohol <- cut(bpdata$ALQ,
+                       breaks = c(-Inf, 1, 2, Inf),
+                       labels = c("Never", 
+                                  "Moderate", 
+                                  "Heavy"),
+                       right = T)
+```
+
+```{r tidy_smoking}
+# Divide smoking
+bpdata$smoking <- cut(bpdata$SMQ,
+                            breaks = c(-Inf, 1, 2, Inf),
+                            labels = c("Never", 
+                                       "Moderate", 
+                                       "Heavy"),
+                            right = T)
+```
+
+```{r tidy_bp}
+# Divide bps
+bpdata$bps_level <- cut(bpdata$BPS,
+                      breaks = c(-Inf,140, Inf),
+                      labels = c("0-140", 
+                                 "140-"),
+                      right = T)
+# Divide bpd
+bpdata$bpd_level <- cut(bpdata$BPD,
+                        breaks = c(-Inf, 90, Inf),
+                        labels = c("0-90", 
+                                   "90-"),
+                        right = T)
+```
+
+
+```{r convert_factor1}
+# Convert trouble asleep, over sleepy, race, diabetes
+bpdata <- bpdata %>%
+  mutate(trouble_asleep = factor(SLQ050,
+                                 levels = c(1, 2),
+                                 labels = c("Has trouble sleeping",
+                                            "No trouble sleeping")),
+         oversleepy = factor(SLQ120,
+                             levels = c(1, 2, 3, 4),
+                             labels = c("Rarely",
+                                        "Sometimes",
+                                        "Often",
+                                        "Almost always")),
+         race = factor(RIDRETH1,
+                       levels = c(1, 2, 3, 4, 5),
+                       labels = c("Mexican American",
+                                  "Other Hispanic",
+                                  "Non-Hispanic White",
+                                  "Non-Hispanic Black",
+                                  "Other Race")),
+         diabetes = factor(DIQ010,
+                           levels = c(1, 2, 3),
+                           labels = c("Yes", 
+                                      "No", 
+                                      "Borderline")))
+
+
+```
+
+```{r bpdata_tidy}
+bpdata_tidy <- bpdata %>%
+  mutate(agegroup = as_factor(agegroup),
+         sodium = as_factor(sodium),
+         bodyweight = as_factor(bodyweight),
+         alcohol = as_factor(alcohol),
+         smoking = as_factor(smoking))
+```
+
+
+
+
+```{r table1}
+# Create tabel 1 characteristics of patients
+tbl <- bpdata_tidy %>%
+  tbl_summary(by = agegroup, 
+              include = c(sleephrscat, sleeptim_num, waketim_num, 
+                          oversleepy, alcohol, smoking, race, bodyweight),
+              statistic = list(all_continuous() ~ "{mean} ± {sd}",
+                               all_categorical() ~ "{n} ({p}%)"),
+              missing = "ifany") %>%
+  add_p(test = all_categorical() ~ "chisq.test") %>%
+  modify_header(label ~ "**Characteristic**") %>%
+  modify_spanning_header(all_stat_cols() ~ "**Age Group Comparison**") %>%
+  bold_labels()
+
+# View the table 1
+tbl
+
+# Export table 1
+tbl %>%
+  as_flex_table() %>%
+  flextable::save_as_docx(path = "Table1_Characteristics_AgeGroup.docx")
+
+```
+
+
+```{r set_level}
+# Set white to base
+bpdata_tidy$race <- factor(bpdata_tidy$race, levels = c("Non-Hispanic White", 
+                                                        "Mexican American", 
+                                                        "Other Hispanic", 
+                                                        "Non-Hispanic Black", 
+                                                        "Other Race"))
+# Set 7-9 hours to base
+bpdata_tidy$sleephrscat <- factor(bpdata_tidy$sleephrscat, levels = c("7-9 hours", "<7 hours", ">=9 hours"))
+
+# Set no trouble sleeping to base
+bpdata_tidy$trouble_asleep <- factor(bpdata_tidy$trouble_asleep, levels = c("No trouble sleeping", "Has trouble sleeping"))
+
+```
+
+
+```{r age_group}
+# Create subset data for different age groups
+bpdata_tidy_60 <- bpdata_tidy %>%
+  filter(agegroup == ">= 60")
+bpdata_tidy_40 <- bpdata_tidy %>%
+  filter(agegroup == "40 - 59")
+bpdata_tidy_18 <- bpdata_tidy %>%
+  filter(agegroup == "18 - 39")
+```
+
+
+```{r boxplot}
+# Check data
+ggplot(bpdata_tidy, aes(x = sleephrscat, y = BPS, fill = agegroup)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of Systolic Blood Pressure by Sleep Duration",
+       x = "Sleep Duration (hours)",
+       y = "Systolic Blood Pressure (mm Hg)") +
+  scale_fill_manual(values = c("lightcoral", "lightblue", "lightgreen")) + 
+  theme_minimal() +
+  theme(legend.title = element_blank())
+# Export the plot
+ggsave("SBP_by_Sleep_Duration.png", width = 8, height = 6, dpi = 300)
+
+```
+
+
+
+
+```{r checking_data_feasibility}
+# Check data distribution
+ggplot(bpdata_tidy,
+       aes(x = SLD012, y = BPS, colour = agegroup)) +
+  geom_point() +
+  scale_color_brewer(palette = "Dark2") +
+  labs(x = "Sleep Hours (h)",
+       y = "Systolic Blood Pressure (mm Hg)")
+
+# Define the model without interaction term
+lm_bps <- lm(BPS ~ SLD012 + sleeptim_num + waketim_num + agegroup,
+                  data = bpdata_tidy)
+
+# View the model
+summary(lm_bps)
+
+# Augment the model
+lm_bps %>% augment()
+# plot the regression lines by sleephrscat
+lm_bps %>%
+  augment() %>% 
+  ggplot(aes(x = SLD012, y = .fitted, colour = agegroup)) +
+  geom_line() +
+  scale_color_brewer(palette = "Dark2")
+
+# Plot the regression lines
+lm_bps %>%
+  augment() %>% 
+  ggplot(aes(x = SLD012, y = .fitted, colour = agegroup)) +
+  # add the original data points
+  geom_point(data = bpdata_tidy,
+             aes(x = SLD012, y = BPS, colour = agegroup)) +
+  geom_line() +
+  scale_color_brewer(palette = "Dark2") +
+  labs(x = "Sleep onset time",
+       y = "Systolic Blood Pressure (mm Hg)")
+
+# Generate residual diagnostic plots for the linear model
+resid_panel(lm_bps,
+            plots = c("resid", "qq", "ls", "cookd"),
+            smoother = TRUE)
+```
+
+
+```{r bps_reg_age_group}
+# Model1 for systolic blood pressure stratified with age group
+model1_bps <- lm(BPS ~ SLD012 + sleeptim_num + waketim_num, 
+                     data = bpdata_tidy)
+model1_bps_18 <- lm(BPS ~ SLD012 + sleeptim_num + waketim_num, 
+                        data = bpdata_tidy_18)
+model1_bps_40 <- lm(BPS ~ SLD012 + sleeptim_num + waketim_num, 
+                        data = bpdata_tidy_40)
+model1_bps_60 <- lm(BPS ~ SLD012 + sleeptim_num + waketim_num, 
+                        data = bpdata_tidy_60)
+
+# Model2 for systolic blood pressure stratified with age group
+model2_bps <- lm(BPS ~ SLD012 + sleeptim_num + waketim_num + race + oversleepy + alcohol +
+                       smoking +bodyweight, 
+                     data = bpdata_tidy)
+model2_bps_18 <- lm(BPS ~ SLD012 + sleeptim_num + waketim_num + race + oversleepy + alcohol +
+                          smoking +bodyweight, 
+                        data = bpdata_tidy_18)
+model2_bps_40 <- lm(BPS ~ SLD012 + sleeptim_num + waketim_num + race + oversleepy + alcohol +
+                          smoking +bodyweight, 
+                        data = bpdata_tidy_40)
+model2_bps_60 <- lm(BPS ~ SLD012 + sleeptim_num + waketim_num + race + oversleepy + alcohol +
+                          smoking +bodyweight, 
+                        data = bpdata_tidy_60)
+
+# View estimation
+summary(model1_bps)
+summary(model1_bps_18)
+summary(model1_bps_40)
+summary(model1_bps_60)
+
+summary(model2_bps)
+summary(model2_bps_18)
+summary(model2_bps_40)
+summary(model2_bps_60)
+```
+
+```{r export_reg}
+# Define function to pool the results
+extract_model_summary <- function(model, age_group, model_type) {
+  tidy(model) %>%
+    mutate(Age_Group = age_group,
+           Model_Type = model_type,
+           estimate = round(estimate, 3), 
+           std.error = round(std.error, 3), 
+           statistic = round(statistic, 3),  
+           p.value = ifelse(p.value < 0.001, "<0.001", round(p.value, 3)))
+}
+
+# Extract model 1 results (stratified by age)
+lm2bps_18_summary <- extract_model_summary(model1_bps_18, "18", "lm2bps")
+lm2bps_40_summary <- extract_model_summary(model1_bps_40, "40", "lm2bps")
+lm2bps_60_summary <- extract_model_summary(model1_bps_60, "60", "lm2bps")
+
+# Extract model 2 results (stratified by age)
+lm4bps_18_summary <- extract_model_summary(model2_bps_18, "18", "lm4bps")
+lm4bps_40_summary <- extract_model_summary(model2_bps_40, "40", "lm4bps")
+lm4bps_60_summary <- extract_model_summary(model2_bps_60, "60", "lm4bps")
+
+# Extract model 1 and model 2 results (all age group)
+lm2bps_all_summary <- extract_model_summary(model1_bps, "All Ages", "lm2bps")
+lm4bps_all_summary <- extract_model_summary(model2_bps, "All Ages", "lm4bps")
+
+# Bind all results
+combined_summary <- bind_rows(lm2bps_18_summary, lm2bps_40_summary, lm2bps_60_summary,
+                              lm4bps_18_summary, lm4bps_40_summary, lm4bps_60_summary,
+                              lm2bps_all_summary, lm4bps_all_summary)
+
+# Check bind results
+print(combined_summary)
+
+# Export regression results table
+write.csv(combined_summary, file = "linear_model_summary_all_ages.csv", row.names = FALSE)
+
+```
+
+```{r prediction_linear_18}
+# Train and testing in the linear regression model (young age group)
+set.seed(123)
+train_index_18 <- sample(1:nrow(bpdata_tidy_18), size = 0.8 * nrow(bpdata_tidy_18))  
+bpdata_train_18 <- bpdata_tidy_18[train_index_18, ]  
+bpdata_test_18 <- bpdata_tidy_18[-train_index_18, ]
+bpdata_test_18 <- na.omit(bpdata_test_18)
+
+# Compute the predicted value on the test data and compute the test error. (young age group)
+pred_test_18 <- predict(model2_bps_18, newdata = bpdata_test_18)
+mse_test_18 <- mean((pred_test_18 - bpdata_test_18$BPS)^2)
+
+# View linear regression mse (young age group)
+mse_test_18
+
+# Prepare data for chord diagram (young age group)
+bpdata_tidy_18$race <- as.numeric(as.factor(bpdata_tidy_18$race))
+bpdata_tidy_18$oversleepy <- as.numeric(as.factor(bpdata_tidy_18$oversleepy))
+bpdata_tidy_18$alcohol <- as.numeric(as.factor(bpdata_tidy_18$alcohol))
+bpdata_tidy_18$smoking <- as.numeric(as.factor(bpdata_tidy_18$smoking))
+bpdata_tidy_18$bodyweight <- as.numeric(as.factor(bpdata_tidy_18$bodyweight))
+bpdata_test_18 <- na.omit(bpdata_test_18)  
+
+
+# Plot chord diagram  (young age group)
+cor_matrix_18 <- cor(bpdata_tidy_18[, c("BPS", "SLD012", "sleeptim_num", "waketim_num", 
+                                        "race", "oversleepy", "alcohol", 
+                                        "smoking", "bodyweight")], use = "complete.obs")
+
+# Rename "BPS" to "Systolic blood pressure" in the correlation matrix  (young age group)
+colnames(cor_matrix_18)[colnames(cor_matrix_18) == "BPS"] <- "Systolic blood pressure"
+rownames(cor_matrix_18)[rownames(cor_matrix_18) == "BPS"] <- "Systolic blood pressure"
+
+# Rename "SLD012" to "Sleep duration" in the correlation matrix  (young age group)
+colnames(cor_matrix_18)[colnames(cor_matrix_18) == "SLD012"] <- "Sleep duration"
+rownames(cor_matrix_18)[rownames(cor_matrix_18) == "SLD012"] <- "Sleep duration"
+
+
+# Rename "sleeptim_num" to "Sleep onset time" in the correlation matrix  (young age group)
+colnames(cor_matrix_18)[colnames(cor_matrix_18) == "sleeptim_num"] <- "Sleep onset time"
+rownames(cor_matrix_18)[rownames(cor_matrix_18) == "sleeptim_num"] <- "Sleep onset time"
+
+# Rename "waketim_num" to "Wake onset time" in the correlation matrix
+colnames(cor_matrix_18)[colnames(cor_matrix_18) == "waketim_num"] <- "Wake onset time"
+rownames(cor_matrix_18)[rownames(cor_matrix_18) == "waketim_num"] <- "Wake onset time"
+
+# Rename "race" to "Race" in the correlation matrix  (young age group)
+colnames(cor_matrix_18)[colnames(cor_matrix_18) == "race"] <- "Race"
+rownames(cor_matrix_18)[rownames(cor_matrix_18) == "race"] <- "Race"
+
+# Rename "oversleepy" to "Over sleepy" in the correlation matrix  (young age group)
+colnames(cor_matrix_18)[colnames(cor_matrix_18) == "oversleepy"] <- "Over sleepy"
+rownames(cor_matrix_18)[rownames(cor_matrix_18) == "oversleepy"] <- "Over sleepy"
+
+# Rename "alcohol" to "Alcohol" in the correlation matrix  (young age group)
+colnames(cor_matrix_18)[colnames(cor_matrix_18) == "alcohol"] <- "Alcohol"
+rownames(cor_matrix_18)[rownames(cor_matrix_18) == "alcohol"] <- "Alcohol"
+
+# Rename "smoking" to "Smoking" in the correlation matrix  (young age group)
+colnames(cor_matrix_18)[colnames(cor_matrix_18) == "smoking"] <- "Smoking"
+rownames(cor_matrix_18)[rownames(cor_matrix_18) == "smoking"] <- "Smoking"
+
+# Rename "bodyweight" to "Body weight" in the correlation matrix  (young age group)
+colnames(cor_matrix_18)[colnames(cor_matrix_18) == "bodyweight"] <- "Body weight"
+rownames(cor_matrix_18)[rownames(cor_matrix_18) == "bodyweight"] <- "Body weight"
+
+# Remove self-correlations to avoid unnecessary links in the chord diagram (young age group)
+diag(cor_matrix_18) <- 0
+# Create chord diagram  (young age group)
+chordDiagram(cor_matrix_18, col = colorRamp2(c(-1, 0, 1), c("blue", "white", "red")))
+
+# Plot scatter plot  (young age group)
+df_plot_18 <- data.frame(Real = bpdata_test_18$BPS, Predicted = pred_test_18)
+
+ggplot(df_plot_18, aes(x = Real, y = Predicted)) +
+  geom_point(color = "blue", alpha = 0.6) +
+  geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") + 
+  labs(title = "Actual vs. Predicted Systolic Blood Pressure for Adults from 18 to 39 years old",
+       x = "Actual Systolic Blood Pressure (mm Hg)",
+       y = "Predicted Systolic Blood Pressure (mm Hg)") +
+  theme_minimal()
+
+# Save chord diagram  (young age group)
+png("chord_diagram_18.png", width = 700, height = 700, res = 150)  
+chordDiagram(cor_matrix_18, col = colorRamp2(c(-1, 0, 1), c("blue", "white", "red")))
+dev.off()
+
+# Save scatter plot  (young age group)
+ggsave("scatter_plot_18.png", width = 7, height = 5, dpi = 300)
+
+```
+
+
+
+```{r prediction_linear_40}
+# Train and testing in the linear regression model (middle age group)
+set.seed(123)
+train_index_40 <- sample(1:nrow(bpdata_tidy_40), size = 0.8 * nrow(bpdata_tidy_40))  
+bpdata_train_40 <- bpdata_tidy_40[train_index_40, ]  
+bpdata_test_40 <- bpdata_tidy_40[-train_index_40, ]
+bpdata_test_40 <- na.omit(bpdata_test_40)
+
+# Compute the predicted value on the test data and compute the test error  (middle age group)
+pred_test_40 <- predict(model2_bps_40, newdata = bpdata_test_40)
+mse_test_40 <- mean((pred_test_40 - bpdata_test_40$BPS)^2)
+
+# View linear regression mse  (middle age group)
+mse_test_40
+
+# Prepare data for chord diagram (middle age group)
+bpdata_tidy_40$race <- as.numeric(as.factor(bpdata_tidy_40$race))
+bpdata_tidy_40$oversleepy <- as.numeric(as.factor(bpdata_tidy_40$oversleepy))
+bpdata_tidy_40$alcohol <- as.numeric(as.factor(bpdata_tidy_40$alcohol))
+bpdata_tidy_40$smoking <- as.numeric(as.factor(bpdata_tidy_40$smoking))
+bpdata_tidy_40$bodyweight <- as.numeric(as.factor(bpdata_tidy_40$bodyweight))
+bpdata_test_40 <- na.omit(bpdata_test_40)  
+
+
+# Plot chord diagram (middle age group)
+cor_matrix_40 <- cor(bpdata_tidy_40[, c("BPS", "SLD012", "sleeptim_num", "waketim_num", 
+                                        "race", "oversleepy", "alcohol", 
+                                        "smoking", "bodyweight")], use = "complete.obs")
+
+# Rename "BPS" to "Systolic blood pressure" in the correlation matrix (middle age group)
+colnames(cor_matrix_40)[colnames(cor_matrix_40) == "BPS"] <- "Systolic blood pressure"
+rownames(cor_matrix_40)[rownames(cor_matrix_40) == "BPS"] <- "Systolic blood pressure"
+
+# Rename "SLD012" to "Sleep duration" in the correlation matrix (middle age group)
+colnames(cor_matrix_40)[colnames(cor_matrix_40) == "SLD012"] <- "Sleep duration"
+rownames(cor_matrix_40)[rownames(cor_matrix_40) == "SLD012"] <- "Sleep duration"
+
+# Rename "sleeptim_num" to "Sleep onset time" in the correlation matrix (middle age group)
+colnames(cor_matrix_40)[colnames(cor_matrix_40) == "sleeptim_num"] <- "Sleep onset time"
+rownames(cor_matrix_40)[rownames(cor_matrix_40) == "sleeptim_num"] <- "Sleep onset time"
+
+# Rename "waketim_num" to "Wake onset time" in the correlation matrix (middle age group)
+colnames(cor_matrix_40)[colnames(cor_matrix_40) == "waketim_num"] <- "Wake onset time"
+rownames(cor_matrix_40)[rownames(cor_matrix_40) == "waketim_num"] <- "Wake onset time"
+
+# Rename "race" to "Race" in the correlation matrix (middle age group)
+colnames(cor_matrix_40)[colnames(cor_matrix_40) == "race"] <- "Race"
+rownames(cor_matrix_40)[rownames(cor_matrix_40) == "race"] <- "Race"
+
+# Rename "oversleepy" to "Over sleepy" in the correlation matrix (middle age group)
+colnames(cor_matrix_40)[colnames(cor_matrix_40) == "oversleepy"] <- "Over sleepy"
+rownames(cor_matrix_40)[rownames(cor_matrix_40) == "oversleepy"] <- "Over sleepy"
+
+# Rename "alcohol" to "Alcohol" in the correlation matrix (middle age group)
+colnames(cor_matrix_40)[colnames(cor_matrix_40) == "alcohol"] <- "Alcohol"
+rownames(cor_matrix_40)[rownames(cor_matrix_40) == "alcohol"] <- "Alcohol"
+
+# Rename "smoking" to "Smoking" in the correlation matrix (middle age group)
+colnames(cor_matrix_40)[colnames(cor_matrix_40) == "smoking"] <- "Smoking"
+rownames(cor_matrix_40)[rownames(cor_matrix_40) == "smoking"] <- "Smoking"
+
+# Rename "bodyweight" to "Body weight" in the correlation matrix (middle age group)
+colnames(cor_matrix_40)[colnames(cor_matrix_40) == "bodyweight"] <- "Body weight"
+rownames(cor_matrix_40)[rownames(cor_matrix_40) == "bodyweight"] <- "Body weight"
+
+# Remove self-correlations to avoid unnecessary links in the chord diagram (middle age group)
+diag(cor_matrix_40) <- 0
+# Create chord diagram  (young age group)
+chordDiagram(cor_matrix_40, col = colorRamp2(c(-1, 0, 1), c("blue", "white", "red")))
+
+# Plot scatter plot (middle age group)
+df_plot_40 <- data.frame(Real = bpdata_test_40$BPS, Predicted = pred_test_40)
+
+ggplot(df_plot_40, aes(x = Real, y = Predicted)) +
+  geom_point(color = "blue", alpha = 0.6) +
+  geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") + 
+  labs(title = "Actual vs. Predicted Systolic Blood Pressure for Adults from 40 to 59 years old",
+       x = "Actual Systolic Blood Pressure (mm Hg)",
+       y = "Predicted Systolic Blood Pressure (mm Hg)") +
+  theme_minimal()
+
+# Save chord diagram (middle age group)
+png("chord_diagram_40.png", width = 700, height = 700, res = 150)  
+chordDiagram(cor_matrix_40, col = colorRamp2(c(-1, 0, 1), c("blue", "white", "red")))
+dev.off()
+
+# Save scatter plot (middle age group)
+ggsave("scatter_plot_40.png", width = 7, height = 5, dpi = 300)
+```
+
+

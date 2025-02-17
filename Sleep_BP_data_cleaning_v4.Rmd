@@ -1,0 +1,340 @@
+---
+title: "Sleep and Systolic Blood Pressure Data Preparation"
+date: "2025-02-05"
+output: pdf_document
+---
+
+```{r package}
+#load package
+library(dplyr)
+library(haven)
+library(tidyverse)
+```
+
+```{r wd}
+# Set working directory 
+setwd("C:/nyu/course/ENAR")
+```
+
+```{r import_bp_examined}
+# Importing blood pressure examined
+bp1_exam <- read_xpt("data/blood_pressure/bp_examined/BPX_I_bp_examined_2015_2016.xpt")
+bp1_exam <- bp1_exam %>%
+  select("SEQN", "BPXSY1", "BPXDI1", "BPXSY2", "BPXDI2", "BPXSY3", "BPXDI3", "BPXSY4", "BPXDI4") %>%
+  mutate(
+    BPS = rowMeans(cbind(BPXSY1, BPXSY2, BPXSY3, BPXSY4), na.rm = TRUE),
+    BPD = rowMeans(cbind(BPXDI1, BPXDI2, BPXDI3, BPXDI4), na.rm = TRUE)) %>%
+  select(SEQN, BPS, BPD)
+
+bp2_exam <- read_xpt("data/blood_pressure/bp_examined/BPX_J_bp_examined_2017_2018.xpt")
+bp2_exam <- bp2_exam %>%
+  select("SEQN", "BPXSY1", "BPXDI1", "BPXSY2", "BPXDI2", "BPXSY3", "BPXDI3", "BPXSY4", "BPXDI4") %>%
+  mutate(
+    BPS = rowMeans(cbind(BPXSY1, BPXSY2, BPXSY3, BPXSY4), na.rm = TRUE),
+    BPD = rowMeans(cbind(BPXDI1, BPXDI2, BPXDI3, BPXDI4), na.rm = TRUE)) %>%
+  select(SEQN, BPS, BPD)
+
+bp3_exam <- read_xpt("data/blood_pressure/bp_examined/P_BPXO_bp_examined_2017_2020.xpt")
+bp3_exam <- bp3_exam %>%
+  select("SEQN", "BPXOSY1", "BPXODI1", "BPXOSY2", "BPXODI2", "BPXOSY3", "BPXODI3") %>%
+  mutate(
+    BPS = rowMeans(cbind(BPXOSY1, BPXOSY2, BPXOSY3), na.rm = TRUE),
+    BPD = rowMeans(cbind(BPXODI1, BPXODI2, BPXODI3), na.rm = TRUE)) %>%
+  select(SEQN, BPS, BPD)
+
+bp_exam <- rbind(bp1_exam, bp2_exam, bp3_exam)
+```
+
+
+```{r import_bp_questionnire}
+# Importing blood pressure questionnaire
+bp1_q <- read_xpt("data/blood_pressure/bp_questionnaire/BPQ_I_bp_questionnaire_2015_2016.xpt")
+bp1_q <- bp1_q %>%
+  select("SEQN", "BPQ040A", "BPQ050A", "BPQ020")
+
+bp2_q <- read_xpt("data/blood_pressure/bp_questionnaire/BPQ_J_bp_questionnaire_2017_2018.xpt")
+bp2_q <- bp2_q %>%
+  select("SEQN", "BPQ040A", "BPQ050A", "BPQ020")
+
+bp3_q <- read_xpt("data/blood_pressure/bp_questionnaire/P_BPQ_bp_questionnaire_2017_2020.xpt")
+bp3_q <- bp3_q %>%
+  select("SEQN", "BPQ040A", "BPQ050A", "BPQ020")
+
+bp_q <- rbind(bp1_q, bp2_q, bp3_q)
+```
+
+```{r import_sleep}
+# Importing sleep data
+slq1 <- read_xpt("data/sleep_patterns/SLQ_I_sleep_patterns_2015_2016.xpt")
+slq1 <- slq1 %>%
+  select("SEQN", "SLD012", "SLQ300", "SLQ310", "SLQ050", "SLQ120")
+
+slq2 <- read_xpt("data/sleep_patterns/SLQ_J_sleep_patterns_2017_2018.xpt")
+slq2 <- slq2 %>%
+  select("SEQN", "SLD012", "SLQ300", "SLQ310", "SLQ050", "SLQ120")
+
+slq3 <- read_xpt("data/sleep_patterns/P_SLQ_sleep_patterns_2017_2020.xpt")
+slq3 <- slq3 %>%
+  select("SEQN", "SLD012", "SLQ300", "SLQ310", "SLQ050", "SLQ120")
+
+slq <- rbind(slq1, slq2, slq3)
+```
+
+```{r import_alcohol}
+# Importing alcohol data
+alq1 <- read_xpt("data/alcohol_use/ALQ_I_alcohol_use_2015_2016.xpt")
+alq1 <- alq1 %>%
+  select("SEQN", "ALQ120Q", "ALQ130")
+
+# ALQ130 variable is 0 if How often drink alcohol over past 12 mos is 0.
+alq1$ALQ130[alq1$ALQ120Q == 0] <- 0
+
+alq1 <- alq1 %>%
+  select(-ALQ120Q)
+
+alq2 <- read_xpt("data/alcohol_use/ALQ_J_alcohol_use_2017_2018.xpt")
+alq2 <- alq2 %>%
+  select("SEQN", "ALQ121", "ALQ111", "ALQ130")
+
+# ALQ130 variable is 0 if "Never in the last year" to Past 12 mo how often have alcohol drink or "No" to Ever had a drink of any kind of alcohol.
+alq2$ALQ130[alq2$ALQ121 == 0 | alq2$ALQ111 == 2] <- 0
+
+alq2 <- alq2 %>%
+  select(-ALQ121, -ALQ111)
+
+alq3 <- read_xpt("data/alcohol_use/P_ALQ_alcohol_use_2017_2020.xpt")
+alq3 <- alq3 %>%
+  select("SEQN", "ALQ121", "ALQ111", "ALQ130")
+
+# ALQ130 variable is 0 if "Never in the last year" to Past 12 mo how often have alcohol drink or "No" to Ever had a drink of any kind of alcohol.
+alq3$ALQ130[alq3$ALQ121 == 0 | alq3$ALQ111 == 2] <- 0
+
+alq3 <- alq3 %>%
+  select(-ALQ121, -ALQ111)
+
+alq <- rbind(alq1, alq2, alq3)
+```
+
+```{r import_salt}
+# Importing salt consumption data
+salt1 <- read_xpt("data/Dietary/DR1TOT_I_salt_2015_2016.xpt")
+salt1 <- salt1 %>%
+  select("SEQN", "DR1TSODI")
+
+salt2 <- read_xpt("data/Dietary/DR1TOT_J_salt_2017_2018.xpt")
+salt2 <- salt2 %>%
+  select("SEQN", "DR1TSODI")
+
+salt3 <- read_xpt("data/Dietary/P_DR1TOT_salt_2017_2020.xpt")
+salt3 <- salt3 %>%
+  select("SEQN", "DR1TSODI")
+
+salt <- rbind(salt1, salt2, salt3)
+```
+
+```{r import_smoking}
+# Importing smoking data
+smk1 <- read_xpt("data/smoking/SMQ_I_smoking_2015_2016.xpt")
+smk1 <- smk1 %>%
+  select("SEQN", "SMQ020", "SMQ040")
+
+# SMQ040 variable is Not at all if Smoked at least 100 cigarettes in life is No.
+smk1$SMQ040[smk1$SMQ020 == 2] <- 3
+
+smk1 <- smk1 %>%
+  select(-SMQ020)
+
+smk2 <- read_xpt("data/smoking/SMQ_J_smoking_2017_2018.xpt")
+smk2 <- smk2 %>%
+  select("SEQN", "SMQ020", "SMQ040")
+
+# SMQ040 variable is Not at all if Smoked at least 100 cigarettes in life is No.
+smk2$SMQ040[smk2$SMQ020 == 2] <- 3
+
+smk2 <- smk2 %>%
+  select(-SMQ020)
+
+smk3 <- read_xpt("data/smoking/P_SMQ_smoking_2017_2020.xpt")
+smk3 <- smk3 %>%
+  select("SEQN", "SMQ020", "SMQ040")
+
+# SMQ040 variable is Not at all if Smoked at least 100 cigarettes in life is No.
+smk3$SMQ040[smk3$SMQ020 == 2] <- 3
+
+smk3 <- smk3 %>%
+  select(-SMQ020)
+
+smk <- rbind(smk1, smk2, smk3)
+```
+
+```{r import_pulse}
+# Importing pulse data
+pul1 <- read_xpt("data/blood_pressure/bp_examined/BPX_I_bp_examined_2015_2016.xpt")
+pul1 <- pul1 %>%
+  select("SEQN", "BPXPLS")
+
+pul2 <- read_xpt("data/blood_pressure/bp_examined/BPXO_J.xpt")
+pul2 <- pul2 %>%
+  select("SEQN", "BPXOPLS1", "BPXOPLS2", "BPXOPLS3") %>%
+  mutate(
+    BPXPLS = rowMeans(cbind(BPXOPLS1, BPXOPLS2, BPXOPLS3), na.rm = TRUE)) %>%
+  select(SEQN, BPXPLS)
+
+pul3 <- read_xpt("data/blood_pressure/bp_examined/P_BPXO.xpt")
+pul3 <- pul3 %>%
+  select("SEQN", "BPXOPLS1", "BPXOPLS2", "BPXOPLS3") %>%
+  mutate(
+    BPXPLS = rowMeans(cbind(BPXOPLS1, BPXOPLS2, BPXOPLS3), na.rm = TRUE)) %>%
+  select(SEQN, BPXPLS)
+
+pul <- rbind(pul1, pul2, pul3)
+```
+
+```{r import_demo}
+# Importing demographic data
+demo1 <- read_xpt("data/demographic/DEMO_I_demograhpic_2015_2016.xpt")
+demo1 <- demo1 %>%
+  select("SEQN", "RIDAGEYR","RIAGENDR", "RIDRETH1")
+
+demo2 <- read_xpt("data/demographic/DEMO_J_demographic_2017_2018.xpt")
+demo2 <- demo2 %>%
+  select("SEQN", "RIDAGEYR","RIAGENDR", "RIDRETH1")
+
+demo3 <- read_xpt("data/demographic/P_DEMO_demographic_2017_2020.xpt")
+demo3 <- demo3 %>%
+  select("SEQN", "RIDAGEYR","RIAGENDR", "RIDRETH1")
+
+demo <- rbind(demo1, demo2, demo3)
+```
+
+```{r import_bmi}
+# Importing overweight data
+bmi1 <- read_xpt("data/over_weight/BMX_I_over_weight_2015_2016.xpt")
+bmi1 <- bmi1 %>%
+  select("SEQN", "BMXBMI")
+
+bmi2 <- read_xpt("data/over_weight/BMX_J_over_weight_2017_2018.xpt")
+bmi2 <- bmi2 %>%
+  select("SEQN", "BMXBMI")
+
+bmi3 <- read_xpt("data/over_weight/P_BMX_over_weight_2017_2020.xpt")
+bmi3 <- bmi3 %>%
+  select("SEQN", "BMXBMI")
+
+bmi <- rbind(bmi1, bmi2, bmi3)
+```
+
+```{r import_diabetes}
+# Importing diabetes data
+dia1 <- read_xpt("data/diabetes/DIQ_I_diabetes_2015_2016.xpt")
+dia1 <- dia1 %>%
+  select("SEQN", "DIQ010")
+
+dia2 <- read_xpt("data/diabetes/DIQ_J_diabetes_2017_2018.xpt")
+dia2 <- dia2 %>%
+  select("SEQN", "DIQ010")
+
+dia3 <- read_xpt("data/diabetes/P_DIQ_diabetes_2017_2020.xpt")
+dia3 <- dia3 %>%
+  select("SEQN", "DIQ010")
+
+dia <- rbind(dia1, dia2, dia3)
+```
+
+```{r combine_data}
+# Combine data
+bpdata <- full_join(bp_exam, bp_q, by="SEQN")
+bpdata <- full_join(bpdata, slq, by="SEQN")
+bpdata <- full_join(bpdata, alq, by="SEQN")
+bpdata <- full_join(bpdata, salt, by="SEQN")
+bpdata <- full_join(bpdata, smk, by="SEQN")
+bpdata <- full_join(bpdata, pul, by="SEQN")
+bpdata <- full_join(bpdata, demo, by="SEQN")
+bpdata <- full_join(bpdata, bmi, by="SEQN")
+bpdata <- full_join(bpdata, dia, by="SEQN")
+```
+
+```{r export_combined_data}
+# Export full joined data
+write.csv(bpdata, "bpdata_allg.csv")
+```
+
+```{r delete_unmatched}
+# Delete unmatched
+bpdata_l <- left_join(bp_exam, bp_q, by="SEQN")
+bpdata_l <- left_join(bpdata_l, slq, by="SEQN")
+bpdata_l <- left_join(bpdata_l, alq, by="SEQN")
+bpdata_l <- left_join(bpdata_l, salt, by="SEQN")
+bpdata_l <- left_join(bpdata_l, smk, by="SEQN")
+bpdata_l <- left_join(bpdata_l, pul, by="SEQN")
+bpdata_l <- left_join(bpdata_l, demo, by="SEQN")
+bpdata_l <- left_join(bpdata_l, bmi, by="SEQN")
+bpdata_l <- left_join(bpdata_l, dia, by="SEQN")
+```
+
+```{r check_data}
+# summary data
+summary(bpdata_l)
+```
+
+```{r remove_na}
+# Exclude missing values and non adults
+bpdata_l <- bpdata_l %>%
+  mutate(SLQ300 = na_if(SLQ300, ""),
+         SLQ310 = na_if(SLQ310, ""))
+bpdata_clean <- bpdata_l %>%
+  filter(!is.na(BPS)) %>%
+  filter(!is.na(BPD)) %>%
+  filter(!is.na(SLD012)) %>%
+  filter(!is.na(SLQ300))%>%
+  filter(!is.na(SLQ310)) %>%
+  filter(RIDAGEYR >= 18) %>%
+  filter(BPD != 00)
+summary(bpdata_clean)
+```
+
+```{r export_nona_data}
+# Export joined data
+write.csv(bpdata_clean, "bpdata_clean2_allg_inhbp.csv")
+```
+
+```{r check_var}
+# Check variables
+table(bpdata_clean$SLQ050)
+table(bpdata_clean$SLQ120)
+table(bpdata_clean$ALQ130)
+table(bpdata_clean$DIQ010)
+```
+
+
+```{r recode}
+# Recode Ever told doctor had trouble sleeping values of Don't know in SLQ050 to No.
+bpdata_clean$SLQ050[bpdata_clean$SLQ050 == 9] <- 2
+
+# Recode Doctor told you have diabetes values of Don't know in DIQ010 to No.
+bpdata_clean$DIQ010[bpdata_clean$DIQ010 == 9] <- 2
+```
+
+
+```{r clean}
+# Exclude missing data
+bpdata_clean2 <- bpdata_clean %>%
+  filter(!is.na(ALQ130)) %>%
+  filter(!is.na(DR1TSODI)) %>%
+  filter(!is.na(BPXPLS)) %>%
+  filter(!is.na(BMXBMI)) %>%
+  filter(!is.na(SMQ040)) %>%
+  filter(SLQ120 != 9) %>%
+  filter(ALQ130 != 999) %>%
+  filter(SLQ050 != 9)
+```
+
+```{r check_clean}
+# Check cleaned data
+summary(bpdata_clean2)
+```
+
+```{r export_clean}
+# Export cleaned data
+write.csv(bpdata_clean2, "bpdata_clean3_allg_inhbp.csv")
+```
